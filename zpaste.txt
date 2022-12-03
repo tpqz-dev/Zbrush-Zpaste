@@ -1,0 +1,121 @@
+
+////////////////////////////////////////////////////////////////////////////
+/// Description
+/// Use zbc dll to get the clipboard content and save an image
+////////////////////////////////////////////////////////////////////////////
+
+///////////////////
+// Variables
+//////////////////
+// Common
+[VarDef,gResult,""]
+[vardef, FILE_SEPARATOR, [StrFromAsc,92]]
+[vardef, SPACE, [StrFromAsc," "]]
+[vardef,QUOTES,[StrFromAsc,34]]
+
+[vardef, TMP_PATH, "zpaste\tmp"]
+[vardef, TMP_FILE, "tmp.jpg"]
+[vardef, ZBCDLL, "zpaste\zbc.dll"]
+[vardef, DLLFUNCTION, "LaunchAppWithFile"]
+
+[vardef, subpaletteTitle, "Zplugin:ZPaste"]
+[vardef, BUTTON_TITLE_PASTE, [strmerge,subpaletteTitle,":", "paste"]]
+[vardef, BUTTON_TITLE_CLIP, [strmerge,subpaletteTitle,":", "clip"]]
+[vardef, BUTTON_TITLE_ALPHA, [strmerge,subpaletteTitle,":", "alpha"]]
+// NOTEBAR TITLES
+[vardef, NOTEBAR_MESSAGE_SUCCESS, ";) - there's a new image in the TEXTURE menu !"]
+[vardef, NOTEBAR_MESSAGE_FAILURE, ":<- No image in the Clipboard ! "]
+
+// BUTTON INFO
+[vardef,INFO_TITLE_PASTE,"paste"]
+[vardef,INFO_TITLE_CLIP,"clip"]
+[vardef,INFO_TITLE_ALPHA,"alpha"]
+
+///////////////////
+// Routines
+//////////////////
+[RoutineDef,pasteRoutine,
+    //[VarSet,tmpfile, [FileNameResolvePath,"zpaste\\tmp\\tmp.jpg"]]
+    [VarSet,rnd,RAND(10000)]
+    [RoutineCall, TimeString]
+    [VarSet,tmpfile, [FileNameResolvePath, [StrMerge, "zpaste\\tmp\\",gResult,rnd,".jpg"]]]
+    [if,[FileExists,tmpfile],
+   
+        [FileDelete,tmpfile],
+    ]
+ // [RoutineCall,LogMessage,tmpfile]
+	[VarSet,stringArg, tmpfile  ]
+	[MemCreate,Test_DLL_mem, 256, 0]	
+	[VarSet, err, [FileExecute,[Var,ZBCDLL],"SaveClipboardImage",#stringArg,,Test_DLL_mem]]
+    //an error
+    [If,err,[Note,"An error occurred.",,2]]
+   // Show success in the notebar otherwise show failure
+    [if,[FileExists,tmpfile],
+        [FileNameSetNext,tmpfile]
+        [notebar,NOTEBAR_MESSAGE_SUCCESS]
+        [VarSet, ISSUCCESS,1]
+        [IPress,Texture:Import]
+        [RoutineCall,RemoveFile,tmpfile]
+    , 
+        [notebar,NOTEBAR_MESSAGE_FAILURE]
+    ]
+]
+
+
+[RoutineDef,TimeString/*Timestring YMHMS*/,
+[VarSet,gResult,""]
+[vardef,year,[ZBrushInfo,9]]
+[vardef,month,[ZBrushInfo,10]]
+[vardef,day,[ZBrushInfo,11]]
+[vardef,hour,[ZBrushInfo,12]]
+[vardef,minute,[ZBrushInfo,13]]
+[vardef,second,[ZBrushInfo,14]]
+[varset,gResult,[strmerge,year,month,day,hour,minute,second]]
+]
+
+
+[RoutineDef,RemoveFile/*Remove File*/,
+[MemCreate,DLLMem, 256, 0]	
+	[VarSet, stringArg,argument]
+	[VarSet, err, [FileExecute,[Var,ZBCDLL],"RemoveFile",#stringArg,,DLLMem]]
+		[VarDef,readVar,""]
+	[MemReadString, DLLMem,#readVar,0,0] 
+
+
+	[if,err==1,
+	,
+		[Notebar,"error deleting tmp image"]
+	]
+
+	[MemDelete,DLLMem]
+	[VarSet, gResult,readVar]
+, argument
+]
+
+///////////////////
+// subpalette, Buttons
+//////////////////
+[ISubPalette,subpaletteTitle]
+
+[IButton,BUTTON_TITLE_PASTE,INFO_TITLE_PASTE,
+    [RoutineCall,pasteRoutine]
+,,150,,,50]
+
+[IButton,BUTTON_TITLE_ALPHA,INFO_TITLE_ALPHA,
+[NoteBar, ""]
+
+// spotlight off
+[if, [IGet,Texture:Turn On Spotlight ]==0,
+// texture off
+    [if, [IGet,Texture:Texture Off ]==0,
+    [IPress,Texture:MakeAlpha]
+    ,
+    [NoteBar, "A texture must be selected !!!!"]
+    ]
+ ,
+ [NoteBar, "Not working in Spotlight mode !!!!"]
+]
+   
+,,150,,,50]
+
+
